@@ -39,7 +39,7 @@ bot.hears(Main_menu, async (ctx) => {
 	} else {
 		await sendDocumentsByCategory(ctx, bot);
 		// if it's an admin but not a category, send a message with inline keyboard options
-		ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
+		await ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
 			reply_markup: {
 				inline_keyboard: [
 					[{ text: 'Add', callback_data: 'addfile' }],
@@ -55,11 +55,12 @@ bot.hears(Main_menu, async (ctx) => {
 bot.action("addfile", async (ctx) => {
 	// Retrieve the category from the stored context
 	const category = ctxForAddFile.message.text;
-	ctx.reply(`Please send me a ${category} file`);
+	ctx.reply(`Please send me a ${category} file or text`);
 	// Listen for the user to send the file
 	bot.on('document', handleDocument);
 	bot.on('photo', handlePhoto)
 	bot.on('video', handleVideo)
+	bot.on('text',handleText)
 })
 
 bot.action("deletefile", async (ctx) => {
@@ -205,6 +206,42 @@ async function handleDocument(ctx) {
 	}
 }
 
+async function handleText(ctx) {
+
+	const category = ctxForAddFile.message.text;
+	try {
+		// Get the file information
+		const fileId = ctx.message.message_id;
+		const fileName = ctx.message.text;
+		const fileType = 'text';
+
+		let data = [];
+		try {
+			const fileData = fs.readFileSync('./Data/content.json', 'utf-8');
+			data = JSON.parse(fileData).documents; // assuming the data is stored under the "documents" key
+		} catch (err) {
+			console.log(err);
+		}
+		// Add the new file to the data
+		data.push({
+			category,
+			file_id: fileId,
+			file_name: fileName,
+			file_type: fileType,
+		});
+
+		// Save the updated data to the file
+		fs.writeFileSync('./Data/content.json', JSON.stringify({ documents: data }));
+
+		// Respond to the user
+		await ctx.reply(`This text "${fileName}" has been saved.`);
+
+	} catch (err) {
+		console.log(err);
+		await ctx.reply(`Error: ${err.message}`);
+	}
+}
+
 async function sendDocumentsByCategory(ctx, bot) {
 	const category = ctx.message.text;
 	console.log(category);
@@ -235,17 +272,29 @@ async function sendDocumentsByCategory(ctx, bot) {
 						caption: doc.file_name,
 					};
 
-				} else {
+				} else if (doc.file_type === 'text') {
+					return {
+						type: 'text',
+						media: doc.file_id,
+						caption: doc.file_name,
+					};
+
+				}
+				 else {
 					return null;
 				}
 			})
 			.filter((media) => media !== null);
-		if (media.length > 0) {
-			await ctx.reply('Here are the documents in this category:');
-			await bot.telegram.sendMediaGroup(ctx.chat.id, media);
-		} else {
-			await ctx.reply('There are no documents in this category.');
-		}
+			
+		await media.map((ele)=>{
+			if(ele.type === 'document'||ele.type === 'photo'||ele.type === 'video'){
+				bot.telegram.sendMediaGroup(ctx.chat.id,[ele])
+				console.log("sending media group")
+			}else {
+				bot.telegram.sendMessage(ctx.chat.id,ele.caption)
+				console.log("sending text")
+			}
+		})	
 	}
 }
 
