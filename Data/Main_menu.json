@@ -1,0 +1,29 @@
+{
+    "menu": [
+      {
+        "name": "مذكرات",
+        "action": "NOTES"
+      },
+      {
+        "name": "مواقع وصفحات",
+        "action": "WEBSITES"
+      },
+      {
+        "name": "مقاطع فيديو",
+        "action": "VIDEOS"
+      },
+      {
+        "name": "ملفات مقترحة",
+        "action": "FILES"
+      },
+      {
+        "name": "نصائح نفسية",
+        "action": "PSYCHOLOGICAL_TIPS"
+      },
+      {
+        "name": "مواقع مفيدة",
+        "action": "usefulSite"
+      }
+    ]
+  }
+  
