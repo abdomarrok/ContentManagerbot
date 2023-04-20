@@ -3,7 +3,7 @@ import fs from "fs";
 const BOT_TOKEN = "6131107887:AAFbi7kFwKlcf2yU3OwYeyRO8q0LlSHf4v4";
 const Admin_IDs = [928572639, 2101480100];
 const bot = new Telegraf(BOT_TOKEN);
-
+let deletingbtn = false;
 bot.use(Telegraf.log());
 
 
@@ -17,40 +17,150 @@ function getMainMenu() {
 		return null;
 	}
 }
-let Main_menu = getMainMenu()
+
 //main menu
 bot.command(['start', 'help', 'goToMainMenu'], async (ctx) => {
+	await ShowMainMenu(ctx)
+})
+
+bot.action("addBtn", async (ctx) => {
+	// Retrieve the category from the stored context
+	ctx.reply(`Please send me a chose btn name`);
+	bot.on('message', createBtn)
+})
+
+bot.action("deleteBtn", async (ctx) => {
+	deletingbtn = true
+	// Retrieve the category from the stored context
+	const fileData = fs.readFileSync('./Data/Main_menu.json', 'utf-8');
+	const data = JSON.parse(fileData).menu;
+	const menuKeyboard = Markup.keyboard(data.map(item => item.name), {
+		wrap: (btn, index, currentRow) => currentRow.length >= (index + 1) / 2,
+	});
+	ctx.reply('Please select the button you want to delete:', menuKeyboard);
+	// bot.on('message',deleteBtn)
+
+});
+
+
+async function ShowMainMenu(ctx) {
+	let Main_menu = getMainMenu()
 	ctx.reply(
 		"Hi!\nI'm Psyco bot!\n Powered by salah.",
 		Markup.keyboard(Main_menu, {
 			wrap: (btn, index, currentRow) => currentRow.length >= (index + 1) / 2,
 		}),
 	);
-})
+	if (!Admin_IDs.includes(ctx.from.id)) {
+
+	} else {
+		ctx.reply(`hello admin can add new button to category content`, {
+			reply_markup: {
+				inline_keyboard: [
+					[{ text: 'AddBtn', callback_data: 'addBtn' }],
+					[{ text: 'DeleteBtn', callback_data: 'deleteBtn' }],
+				],
+			},
+		});
+	}
+}
+async function deleteBtn(ctx) {
+	deletingbtn = false;
+	const btnName = ctx.message.text;
+	console.log(`Attempting to delete button "${btnName}"`);
+	try {
+		// Load the menu data from the file
+		const fileData = fs.readFileSync('./Data/Main_menu.json', 'utf-8');
+		const menuData = JSON.parse(fileData).menu;
+
+		// Remove the button from the menu data array
+		const index = menuData.findIndex((btn) => btn.name === btnName);
+		console.log("am here", index)
+		if (index > -1) {
+			try {
+
+				menuData.splice(index, 1);
+				// Save the updated menu data to the file
+				fs.writeFileSync('./Data/Main_menu.json', JSON.stringify({ menu: menuData }));
+				// Respond to the user
+				console.log(`Button "${btnName}" deleted successfully`);
+
+				await ctx.reply(`The button "${btnName}" has been removed from the main menu.`);
+				ShowMainMenu(ctx);
+			} catch (e) { console.log(e) }
+		} else {
+			console.log(`Button "${btnName}" not found in menu`);
+			await ctx.reply(`Error: The button "${btnName}" was not found in the main menu.`);
+		}
+	} catch (err) {
+		console.log(`Error deleting button "${btnName}": ${err.message}`);
+		await ctx.reply(`Error deleting button "${btnName}": ${err.message}`);
+	}
+}
+
+
+async function createBtn(ctx) {
+	const btnName = ctx.message.text;
+	console.log(btnName);
+
+	try {
+		// Load the menu data from the file
+		const fileData = fs.readFileSync('./Data/Main_menu.json', 'utf-8');
+		const menuData = JSON.parse(fileData).menu;
+
+		// Add the new button to the menu data
+		menuData.push({
+			name: btnName,
+			action: btnName.toUpperCase().replace(/ /g, '_')
+		});
+
+		// Save the updated menu data to the file
+		fs.writeFileSync('./Data/Main_menu.json', JSON.stringify({ menu: menuData }));
+
+		// Respond to the user
+		await ctx.reply(`The button "${btnName}" has been added to the main menu.`);
+		ShowMainMenu(ctx)
+	} catch (err) {
+		console.log(err);
+		await ctx.reply(`Error: ${err.message}`);
+	}
+}
+
 
 let ctxForAddFile; // declare a variable to store the context
 let ctxForDeletingFile; // declare a variable to store the context
 
-bot.hears(Main_menu,  (ctx) => {
-	if (!Admin_IDs.includes(ctx.from.id)) {
-		// if it's not an admin, send a simple message
-		ctx.reply(`You clicked on: ${ctx.message.text}`);
-		 sendDocumentsByCategory(ctx, bot);
+let Main_menu = getMainMenu()
+bot.hears(Main_menu, (ctx) => {
+	if (deletingbtn) {
+		console.log("you are deleteing btn", ctx.message.text)
+		deleteBtn(ctx)
 	} else {
-		 sendDocumentsByCategory(ctx, bot);
-		// if it's an admin but not a category, send a message with inline keyboard options
-		 ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
-			reply_markup: {
-				inline_keyboard: [
-					[{ text: 'Add', callback_data: 'addfile' }],
-					[{ text: 'Delete', callback_data: 'deletefile' }],
-				],
-			},
-		});
-		ctxForAddFile = ctx; // store the context in the variable
-		ctxForDeletingFile = ctx; // store the context in the variable
+		if (!Admin_IDs.includes(ctx.from.id)) {
+			// if it's not an admin, send a simple message
+			ctx.reply(`You clicked on: ${ctx.message.text}`);
+			sendDocumentsByCategory(ctx, bot);
+		} else {
+			sendDocumentsByCategory(ctx, bot);
+			// if it's an admin send a message with inline keyboard options
+			ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
+				reply_markup: {
+					inline_keyboard: [
+						[{ text: 'Add', callback_data: 'addfile' }],
+						[{ text: 'Delete', callback_data: 'deletefile' }],
+					],
+				},
+			});
+
+			ctxForAddFile = ctx; // store the context in the variable
+			ctxForDeletingFile = ctx; // store the context in the variable
+		}
+
 	}
+
 });
+
+
 
 bot.action("addfile", async (ctx) => {
 	// Retrieve the category from the stored context
@@ -60,20 +170,20 @@ bot.action("addfile", async (ctx) => {
 	bot.on('document', handleDocument);
 	bot.on('photo', handlePhoto)
 	bot.on('video', handleVideo)
-	bot.on('text',handleText)
+	bot.on('text', handleText)
 })
 
 bot.action("deletefile", async (ctx) => {
 	let fileNametoDeleteC = ctxForDeletingFile.message.text
-	console.log("category of file",fileNametoDeleteC)
+	console.log("category of file", fileNametoDeleteC)
 
 	const content = fs.readFileSync("./Data/content.json", "utf-8");
 	let data = JSON.parse(content);
 	const documents = JSON.parse(content).documents;
 	const fileNames = documents.filter(doc => doc.category === fileNametoDeleteC).map(doc => doc.file_name);
-	
+
 	let Markup_inlineKey = fileNames.map((fileName) => {
-		return [{ text: fileName , callback_data: "deleteChosenfile" }]
+		return [{ text: fileName, callback_data: "deleteChosenfile" }]
 	})
 	console.log(Markup_inlineKey)
 	ctx.reply("Choose file to delete:", {
@@ -84,21 +194,21 @@ bot.action("deletefile", async (ctx) => {
 
 	// what i do here to delete from content by chosen name
 
-  });
-  
-  bot.action("deleteChosenfile", (ctx2) => {
+});
+
+bot.action("deleteChosenfile", (ctx2) => {
 	const content = fs.readFileSync("./Data/content.json", "utf-8");
 	let data = JSON.parse(content);
 
-	 const fileIdToDelete = ctx2.callbackQuery.message.reply_markup.inline_keyboard;
-    console.log('File to delete:', fileIdToDelete);
+	const fileIdToDelete = ctx2.callbackQuery.message.reply_markup.inline_keyboard;
+	console.log('File to delete:', fileIdToDelete);
 
 	fs.writeFileSync("./Data/content.json", JSON.stringify(data));
-	 ctx2.answerCbQuery(`File  tt  has been deleted`);
-	 console.log("deleted")
+	ctx2.answerCbQuery(`File  tt  has been deleted`);
+	console.log("deleted")
 });
-  
-  
+
+
 
 async function handlePhoto(ctx) {
 
@@ -281,25 +391,25 @@ async function sendDocumentsByCategory(ctx, bot) {
 					};
 
 				}
-				 else {
+				else {
 					return null;
 				}
 			})
 			.filter((media) => media !== null);
-			
-		await media.map((ele)=>{
-			if(ele.type === 'document'||ele.type === 'photo'||ele.type === 'video'){
-				bot.telegram.sendMediaGroup(ctx.chat.id,[ele])
+
+		await media.map((ele) => {
+			if (ele.type === 'document' || ele.type === 'photo' || ele.type === 'video') {
+				bot.telegram.sendMediaGroup(ctx.chat.id, [ele])
 				console.log("sending media group")
-			}else {
-				bot.telegram.sendMessage(ctx.chat.id,ele.caption)
+			} else {
+				bot.telegram.sendMessage(ctx.chat.id, ele.caption)
 				console.log("sending text")
 			}
-		})	
+		})
 	}
 }
 
-
+bot.launch();
 
 
 
@@ -426,4 +536,3 @@ bot.command("special", ctx => {
 	);
 });
 
-bot.launch();
