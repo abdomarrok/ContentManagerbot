@@ -1,7 +1,9 @@
 import { Telegraf, Markup } from "telegraf";
 import fs from "fs";
-const BOT_TOKEN = "6131107887:AAFbi7kFwKlcf2yU3OwYeyRO8q0LlSHf4v4";
-const Admin_IDs = [928572639, 2101480100];
+import dotenv from 'dotenv';
+dotenv.config();
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const Admin_IDs = process.env.Admin_IDs;
 const bot = new Telegraf(BOT_TOKEN);
 let deletingbtn = false;
 bot.use(Telegraf.log());
@@ -25,7 +27,7 @@ bot.command(['start', 'help', 'goToMainMenu'], async (ctx) => {
 
 bot.action("addBtn", async (ctx) => {
 	// Retrieve the category from the stored context
-	ctx.reply(`Please send me a chose btn name`);
+	ctx.reply(`Please send give me btn name`);
 	bot.on('message', createBtn)
 })
 
@@ -42,7 +44,7 @@ bot.action("deleteBtn", async (ctx) => {
 
 });
 
-
+//show main menu function
 async function ShowMainMenu(ctx) {
 	let Main_menu = getMainMenu()
 	ctx.reply(
@@ -64,6 +66,7 @@ async function ShowMainMenu(ctx) {
 		});
 	}
 }
+
 async function deleteBtn(ctx) {
 	deletingbtn = false;
 	const btnName = ctx.message.text;
