@@ -1,7 +1,7 @@
 import { Telegraf, Markup } from "telegraf";
 import fs from "fs";
 const BOT_TOKEN = "6131107887:AAFbi7kFwKlcf2yU3OwYeyRO8q0LlSHf4v4";
-const Admin_IDs = [928572639, 11];
+const Admin_IDs = [928572639, 2101480100];
 const bot = new Telegraf(BOT_TOKEN);
 
 bot.use(Telegraf.log());
@@ -31,15 +31,15 @@ bot.command(['start', 'help', 'goToMainMenu'], async (ctx) => {
 let ctxForAddFile; // declare a variable to store the context
 let ctxForDeletingFile; // declare a variable to store the context
 
-bot.hears(Main_menu, async (ctx) => {
+bot.hears(Main_menu,  (ctx) => {
 	if (!Admin_IDs.includes(ctx.from.id)) {
 		// if it's not an admin, send a simple message
 		ctx.reply(`You clicked on: ${ctx.message.text}`);
-		await sendDocumentsByCategory(ctx, bot);
+		 sendDocumentsByCategory(ctx, bot);
 	} else {
-		await sendDocumentsByCategory(ctx, bot);
+		 sendDocumentsByCategory(ctx, bot);
 		// if it's an admin but not a category, send a message with inline keyboard options
-		await ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
+		 ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
 			reply_markup: {
 				inline_keyboard: [
 					[{ text: 'Add', callback_data: 'addfile' }],
@@ -64,13 +64,16 @@ bot.action("addfile", async (ctx) => {
 })
 
 bot.action("deletefile", async (ctx) => {
+	let fileNametoDeleteC = ctxForDeletingFile.message.text
+	console.log("category of file",fileNametoDeleteC)
+
 	const content = fs.readFileSync("./Data/content.json", "utf-8");
 	let data = JSON.parse(content);
 	const documents = JSON.parse(content).documents;
-	const fileNames = documents.map((doc) => doc.file_name);
+	const fileNames = documents.filter(doc => doc.category === fileNametoDeleteC).map(doc => doc.file_name);
 	
 	let Markup_inlineKey = fileNames.map((fileName) => {
-		return [{ text: fileName , callback_data: 'deleteChosenfile' }]
+		return [{ text: fileName , callback_data: "deleteChosenfile" }]
 	})
 	console.log(Markup_inlineKey)
 	ctx.reply("Choose file to delete:", {
@@ -79,22 +82,20 @@ bot.action("deletefile", async (ctx) => {
 		}
 	});
 
+	// what i do here to delete from content by chosen name
 
   });
   
-  bot.action("deleteChosenfile", async (ctx2) => {
+  bot.action("deleteChosenfile", (ctx2) => {
 	const content = fs.readFileSync("./Data/content.json", "utf-8");
 	let data = JSON.parse(content);
-	const fileNameToRemove = ctx2.callbackQuery.data;
 
-	data.documents.forEach((obj, index) => {
-		if (obj.file_name === fileNameToRemove) {
-			data.documents.splice(index, 1);
-		}
-	});
+	 const fileIdToDelete = ctx2.callbackQuery.message.reply_markup.inline_keyboard;
+    console.log('File to delete:', fileIdToDelete);
 
 	fs.writeFileSync("./Data/content.json", JSON.stringify(data));
-	await ctx2.answerCbQuery(`File ${fileNameToRemove} has been deleted`);
+	 ctx2.answerCbQuery(`File  tt  has been deleted`);
+	 console.log("deleted")
 });
   
   
