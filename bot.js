@@ -141,10 +141,10 @@ bot.hears(Main_menu, (ctx) => {
 	} else {
 		if (!Admin_IDs.includes(ctx.from.id)) {
 			// if it's not an admin, send a simple message
-			ctx.reply(`You clicked on: ${ctx.message.text}`);
-			sendDocumentsByCategory(ctx, bot);
+		 	ctx.reply(`You clicked on: ${ctx.message.text}`);
+			 sendDocumentsByCategory(ctx, bot);
 		} else {
-			sendDocumentsByCategory(ctx, bot);
+			 sendDocumentsByCategory(ctx, bot);
 			// if it's an admin send a message with inline keyboard options
 			ctx.reply(`Hello admin! You clicked on: ${ctx.message.text}`, {
 				reply_markup: {
@@ -179,39 +179,57 @@ bot.action("addfile", async (ctx) => {
 bot.action("deletefile", async (ctx) => {
 	let fileNametoDeleteC = ctxForDeletingFile.message.text
 	console.log("category of file", fileNametoDeleteC)
-
+  
 	const content = fs.readFileSync("./Data/content.json", "utf-8");
 	let data = JSON.parse(content);
-	const documents = JSON.parse(content).documents;
+	const documents = data.documents;
 	const fileNames = documents.filter(doc => doc.category === fileNametoDeleteC).map(doc => doc.file_name);
-
+  
 	let Markup_inlineKey = fileNames.map((fileName) => {
-		return [{ text: fileName, callback_data: "deleteChosenfile" }]
+	  return [{ text: fileName, callback_data: "deleteChosenfile:"+fileName }]
 	})
 	console.log(Markup_inlineKey)
 	ctx.reply("Choose file to delete:", {
-		reply_markup: {
-			inline_keyboard: Markup_inlineKey
-		}
+	  reply_markup: {
+		inline_keyboard: Markup_inlineKey
+	  }
 	});
-
-	// what i do here to delete from content by chosen name
-
-});
-
-bot.action("deleteChosenfile", (ctx2) => {
-	const content = fs.readFileSync("./Data/content.json", "utf-8");
+  });
+  
+  // Define a function to delete a file from the content JSON
+  function deleteFileFromContent(fileNameToDelete) {
+	const content = fs.readFileSync('./Data/content.json', 'utf-8');
 	let data = JSON.parse(content);
+	
+	// Remove the document with the matching file name from the array
+	data.documents = data.documents.filter((doc) => doc.file_name !== fileNameToDelete);
+  
+	fs.writeFileSync('./Data/content.json', JSON.stringify(data));
+  }
+  
+  
+  bot.on('callback_query', (ctx) => 
+  	{
+	const fileNameToDelete = ctx.update.callback_query.data.split(':')[1];// Extract the file name from the callback query
+	console.log('File to delete:', fileNameToDelete);
+  
+	// Call the function to delete the file from the content JSON
+	deleteFileFromContent(fileNameToDelete);
+	
+	ctx.answerCbQuery(`File ${fileNameToDelete} has been deleted`);
+	console.log('deleted');
+	ShowMainMenu(ctx)
 
-	const fileIdToDelete = ctx2.callbackQuery.message.reply_markup.inline_keyboard;
-	console.log('File to delete:', fileIdToDelete);
-
-	fs.writeFileSync("./Data/content.json", JSON.stringify(data));
-	ctx2.answerCbQuery(`File  tt  has been deleted`);
-	console.log("deleted")
-});
-
-
+	}
+);
+bot.on('error', (error) => {
+	if (error instanceof TelegramError && error.description.includes('Wrong file identifier/HTTP URL specified')) {
+	  console.log('Error: Wrong file identifier/HTTP URL specified');
+	} else {
+	  console.log('Error:', error);
+	}
+  });
+  
 
 async function handlePhoto(ctx) {
 
@@ -399,21 +417,30 @@ async function sendDocumentsByCategory(ctx, bot) {
 				}
 			})
 			.filter((media) => media !== null);
+		console.log("media lentgh",media.length);
+			try {
+				media.map((ele) => {
+					if (ele.type === 'document' || ele.type === 'photo' || ele.type === 'video') {
+						bot.telegram.sendMediaGroup(ctx.chat.id, [ele])
+						console.log("sending media group")
+					} else {
+						bot.telegram.sendMessage(ctx.chat.id, ele.caption)
+						console.log("sending text")
+					}
+				})
+			} catch (error) {
+				console.log("error",error)
 
-		await media.map((ele) => {
-			if (ele.type === 'document' || ele.type === 'photo' || ele.type === 'video') {
-				bot.telegram.sendMediaGroup(ctx.chat.id, [ele])
-				console.log("sending media group")
-			} else {
-				bot.telegram.sendMessage(ctx.chat.id, ele.caption)
-				console.log("sending text")
 			}
-		})
+		
 	}
 }
 
-bot.launch();
 
+
+
+bot.startPolling();
+  
 
 
 
@@ -522,10 +549,11 @@ bot.action("italic", async ctx => {
 		]),
 	});
 });
-
+/*
 bot.action(/.+/, ctx => {
 	return ctx.answerCbQuery(`Oh, ${ctx.match[0]}! Great choice`);
 });
+*/
 
 bot.hears("Search", ctx => ctx.reply("Yay!"));
 
